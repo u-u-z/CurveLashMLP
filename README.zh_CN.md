@@ -45,9 +45,15 @@ $$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$$
 其中 $$\Delta s$$ 和 $$\Delta n$$ 分别为切向和法向偏移量。
 
 训练配置：
-- 优化器：Adam
-- 损失函数：$$L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$$
-- 评估指标：$$MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$$
+
+* 优化器：Adam
+* 损失函数：
+
+  $$L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$$
+
+* 评估指标：
+
+  $$MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$$
 
 ### 2.3 相对运动分析
 
