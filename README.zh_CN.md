@@ -67,7 +67,8 @@ $$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$$
 
 ### 2.4 曲线参数化
 
-公式定义如下（公式2.4）：
+公式定义如下：
+
 $$
 \begin{cases}
 X = L_A \cdot s \\
@@ -75,8 +76,8 @@ Y = x_B(t(s)) \\
 Z = y_B(t(s))
 \end{cases}
 $$
-其中：
-$L_A$ 为曲线A的长度，$s$ 为归一化弧长参数，$t(s)$ 为曲线B上对应点的参数值。
+
+其中：$L_A$ 为曲线A的长度，$s$ 为归一化弧长参数，$t(s)$ 为曲线B上对应点的参数值。
 
 <img src="./doc/curves_by_svg.png" width="500"/>
 
