@@ -36,22 +36,22 @@ Z = y_B(t(s))
 \end{cases}
 $$
 
-其中$L_A$为曲线A长度，$s$为归一化弧长参数，$t(s)$为曲线B对应参数值。
+其中 $L_A$ 为曲线 A 长度， $s$ 为归一化弧长参数， $t(s)$ 为曲线 B 对应参数值。
 
 ### 2.3 网络架构
 模型采用多层感知机结构，前向传播过程为：
 
-每层$l$的输出$$h^{(l)}$$计算为：
+每层 $l$ 的输出 $h^{(l)}$ 计算为：
 
 $$h^{(l)} = \text{ReLU}(W^{(l)}h^{(l-1)} + b^{(l)})$$
 
-其中$$W^{(l)}$$和$$b^{(l)}$$为第$l$层权重与偏置。
+其中 $W^{(l)}$ 和 $b^{(l)}$ 为第 $l$ 层权重与偏置。
 
 最终输出层生成偏移量预测：
 
 $$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$$
 
-其中$$\Delta s$$和$$\Delta n$$分别为切向与法向偏移量。
+其中 $\Delta s$ 和 $\Delta n$ 分别为切向与法向偏移量。
 
 训练配置：
 * 优化器：Adam
@@ -65,7 +65,7 @@ $$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$$
 
 $$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$$
 
-其中$s$为曲线A对应参数值，$$(\Delta s, \Delta n)$$为预测偏移量。
+其中 $s$ 为曲线A对应参数值， $(\Delta s, \Delta n)$ 为预测偏移量。
 
 <img src="./doc/relative_motion.png" width="500"/>
 
