@@ -16,58 +16,66 @@ In anime character design, eye detail rendering significantly impacts character 
 
 Our research employs curve parameterization to convert eye contours (Curve A) and eyelash curves (Curve B) into unified parameter representations. By establishing local coordinate systems, complex spatial relationships are decomposed into tangential and normal components, providing normalized input features for the deep learning model.
 
-Let $\gamma_A(t)$ and $\gamma_B(t)$ represent the eye contour and eyelash curves respectively, where $t \in [0,1]$ is the normalized arc length parameter. The curves are parameterized as:
+Let $$\gamma_A(t)$$ and $$\gamma_B(t)$$ represent the eye contour and eyelash curves respectively, where $t \in [0,1]$ is the normalized arc length parameter. The curves are parameterized as:
 
-$\gamma_A(t) = (x_A(t), y_A(t))$
-$\gamma_B(t) = (x_B(t), y_B(t))$
+$$\gamma_A(t) = (x_A(t), y_A(t))$$
+$$\gamma_B(t) = (x_B(t), y_B(t))$$
 
-The tangent vector $T(t)$ and normal vector $N(t)$ at any point on curve A are computed as:
+The tangent vector $$T(t)$$ and normal vector $$N(t)$$ at any point on curve A are computed as:
 
-$T(t) = \frac{\gamma_A'(t)}{|\gamma_A'(t)|}$
-$N(t) = (-T_y(t), T_x(t))$
+$$T(t) = \frac{\gamma_A'(t)}{|\gamma_A'(t)|}$$
+$$N(t) = (-T_y(t), T_x(t))$$
 
 <img src="./doc/curves_by_svg.png" width="500"/>
 
 ### 2.2 Curve Parameterization
 
-The parametric equations are defined as (Equation 2.1):
-\[
+The parametric equations are defined as:
+
+$$
 \begin{cases}
 X = L_A \cdot s \\
 Y = x_B(t(s)) \\
 Z = y_B(t(s))
 \end{cases}
-\]
-where:
+$$
+
+where $L_A$ is the length of curve A, $s$ is the normalized arc length parameter, and $t(s)$ is the corresponding parameter value on curve B.
 
 ### 2.3 Network Architecture
 
 The model adopts a multi-layer perceptron structure with the following forward propagation:
 
-For each layer $l$, the output $h^{(l)}$ is computed as:
+For each layer $l$, the output $$h^{(l)}$$ is computed as:
 
-$h^{(l)} = \text{ReLU}(W^{(l)}h^{(l-1)} + b^{(l)})$
+$$h^{(l)} = \text{ReLU}(W^{(l)}h^{(l-1)} + b^{(l)})$$
 
-where $W^{(l)}$ and $b^{(l)}$ are the weights and biases of layer $l$.
+where $$W^{(l)}$$ and $$b^{(l)}$$ are the weights and biases of layer $l$.
 
 The final output layer produces the offset predictions:
 
-$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$
+$$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$$
 
-where $\Delta s$ and $\Delta n$ are the tangential and normal offsets respectively.
+where $$\Delta s$$ and $$\Delta n$$ are the tangential and normal offsets respectively.
 
 Training configuration:
-- Optimizer: Adam
-- Loss function: $L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$
-- Evaluation metric: $MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$
+
+* Optimizer: Adam
+* Loss function:
+
+  $$L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$$
+
+* Evaluation metric:
+
+  $$MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$$
 
 ### 2.4 Relative Motion Analysis
 
 Through arc length parameterization and local coordinate system transformation, we established a mathematical model for the relative positional relationship between curves. The position of any point on curve B can be expressed in terms of curve A's local coordinate system:
 
-$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$
+$$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$$
 
-where $s$ is the corresponding parameter value on curve A, and $(\Delta s, \Delta n)$ are the predicted offsets.
+where $s$ is the corresponding parameter value on curve A, and $$(\Delta s, \Delta n)$$ are the predicted offsets.
 
 <img src="./doc/relative_motion.png" width="500"/>
 
