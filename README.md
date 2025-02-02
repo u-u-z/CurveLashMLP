@@ -141,4 +141,4 @@ The proposed deep learning method successfully achieves automatic eyelash genera
 
 ## Copyright Notice
 
- Kigland Research. All rights reserved.
+The Kigland team, it's the New Year, let's write a report just for the sake of it. ^ - ^
