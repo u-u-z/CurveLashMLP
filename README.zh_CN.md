@@ -16,15 +16,15 @@
 
 本研究采用曲线参数化方法，将眼眶曲线（曲线A）和眼睫毛曲线（曲线B）转换为统一的参数表示。通过建立局部坐标系，将复杂的空间关系分解为切向和法向分量，为深度学习模型提供了规范化的输入特征。
 
-设 $\gamma_A(t)$ 和 $\gamma_B(t)$ 分别表示眼眶和眼睫毛曲线，其中 $t \in [0,1]$ 为归一化弧长参数。曲线参数化表示为：
+设 $$\gamma_A(t)$$ 和 $$\gamma_B(t)$$ 分别表示眼眶和眼睫毛曲线，其中 $t \in [0,1]$ 为归一化弧长参数。曲线参数化表示为：
 
-$\gamma_A(t) = (x_A(t), y_A(t))$
-$\gamma_B(t) = (x_B(t), y_B(t))$
+$$\gamma_A(t) = (x_A(t), y_A(t))$$
+$$\gamma_B(t) = (x_B(t), y_B(t))$$
 
-在曲线A上任意点的切向量 $T(t)$ 和法向量 $N(t)$ 计算如下：
+在曲线A上任意点的切向量 $$T(t)$$ 和法向量 $$N(t)$$ 计算如下：
 
-$T(t) = \frac{\gamma_A'(t)}{|\gamma_A'(t)|}$
-$N(t) = (-T_y(t), T_x(t))$
+$$T(t) = \frac{\gamma_A'(t)}{|\gamma_A'(t)|}$$
+$$N(t) = (-T_y(t), T_x(t))$$
 
 <img src="./doc/curves_by_svg.png" width="500"/>
 
@@ -32,43 +32,43 @@ $N(t) = (-T_y(t), T_x(t))$
 
 模型采用多层感知机结构，前向传播过程如下：
 
-对于每一层 $l$，输出 $h^{(l)}$ 的计算为：
+对于每一层 $l$，输出 $$h^{(l)}$$ 的计算为：
 
-$h^{(l)} = \text{ReLU}(W^{(l)}h^{(l-1)} + b^{(l)})$
+$$h^{(l)} = \text{ReLU}(W^{(l)}h^{(l-1)} + b^{(l)})$$
 
-其中 $W^{(l)}$ 和 $b^{(l)}$ 分别为该层的权重和偏置。
+其中 $$W^{(l)}$$ 和 $$b^{(l)}$$ 分别为该层的权重和偏置。
 
 最终输出层产生偏移预测：
 
-$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$
+$$[\Delta s, \Delta n] = W^{(out)}h^{(L)} + b^{(out)}$$
 
-其中 $\Delta s$ 和 $\Delta n$ 分别为切向和法向偏移量。
+其中 $$\Delta s$$ 和 $$\Delta n$$ 分别为切向和法向偏移量。
 
 训练配置：
 - 优化器：Adam
-- 损失函数：$L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$
-- 评估指标：$MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$
+- 损失函数：$$L_{MSE} = \frac{1}{N}\sum_{i=1}^N(\hat{y}_i - y_i)^2$$
+- 评估指标：$$MAE = \frac{1}{N}\sum_{i=1}^N|\hat{y}_i - y_i|$$
 
 ### 2.3 相对运动分析
 
 通过弧长参数化和局部坐标系转换，我们建立了曲线间相对位置关系的数学模型。曲线B上任意点的位置可以用曲线A的局部坐标系表示：
 
-$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$
+$$\gamma_B(t) = \gamma_A(s) + \Delta s(s)T(s) + \Delta n(s)N(s)$$
 
-其中 $s$ 为曲线A上的对应参数值，$(\Delta s, \Delta n)$ 为预测的偏移量。
+其中 $s$ 为曲线A上的对应参数值，$$(\Delta s, \Delta n)$$ 为预测的偏移量。
 
 <img src="./doc/relative_motion.png" width="500"/>
 
 ### 2.4 曲线参数化
 
 公式定义如下（公式2.4）：
-\[
+$$
 \begin{cases}
 X = L_A \cdot s \\
 Y = x_B(t(s)) \\
 Z = y_B(t(s))
 \end{cases}
-\]
+$$
 其中：
 $L_A$ 为曲线A的长度，$s$ 为归一化弧长参数，$t(s)$ 为曲线B上对应点的参数值。
 
