@@ -16,6 +16,8 @@ def prepare_curve_data(A_points, B_points, n_samples=50):
     Returns:
         X: A曲线位置参数
         y: B曲线的切向和法向偏移量
+    
+    Formula ref: README.md#2.1-Curve-Data-Preparation
     """
     # 计算A曲线的位置参数（弧长归一化）
     A_diffs = np.diff(A_points, axis=0)
@@ -74,6 +76,8 @@ def prepare_curve_data(A_points, B_points, n_samples=50):
 def create_model():
     """
     创建神经网络模型
+    
+    Formula ref: README.md#3.2-Neural-Network-Model
     """
     model = keras.Sequential([
         keras.layers.Dense(64, activation='relu', input_shape=(1,)),
@@ -103,6 +107,8 @@ def train_curve_model(A_curves, B_curves, epochs=100, batch_size=32):
     Returns:
         model: 训练好的模型
         history: 训练历史
+    
+    Formula ref: README.md#3.3-Curve-Model-Training
     """
     # 准备数据
     X_all = []
@@ -153,6 +159,8 @@ def predict_B_curve(model, A_points, X_scaler, y_scaler):
     
     Returns:
         np.array: 预测的B曲线点
+    
+    Formula ref: README.md#3.4-Curve-Prediction
     """
     # 准备A曲线参数
     A_diffs = np.diff(A_points, axis=0)
