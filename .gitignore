@@ -44,3 +44,11 @@ ENV/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+web_model/
+converter_env
+web/model/
+saved_model/
+output/
+*.h5
+*.keras
