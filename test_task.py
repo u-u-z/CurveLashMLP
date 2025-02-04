@@ -107,26 +107,7 @@ class ONNXPredictor(CurvePredictor):
         
         return b_points
 
-def arc_length_parameterization(points):
-    """Arc length parameterization"""
-    dx = np.diff(points[:,0])
-    dy = np.diff(points[:,1])
-    seg_lengths = np.sqrt(dx**2 + dy**2)
-    cum_length = np.cumsum(seg_lengths)
-    total_length = cum_length[-1]
-    normalized = np.insert(cum_length, 0, 0) / total_length
-    return normalized, total_length
 
-def compute_tangent_normal(points):
-    """Compute curve tangent and normal vectors"""
-    dx = np.gradient(points[:,0])
-    dy = np.gradient(points[:,1])
-    
-    lengths = np.sqrt(dx**2 + dy**2)
-    tangent = np.column_stack([dx/lengths, dy/lengths])
-    normal = np.column_stack([-tangent[:,1], tangent[:,0]])
-    
-    return tangent, normal
 
 def transform_to_local_coordinates(point, origin, tangent, normal):
     """Transform point to local coordinate system"""
@@ -137,40 +118,13 @@ def transform_to_local_coordinates(point, origin, tangent, normal):
 
 def prepare_curve_data(A_points, B_points):
     """Prepare curve training data"""
-    # Calculate position parameters of curve A (arc length normalization)
-    A_diffs = np.diff(A_points, axis=0)
-    A_lengths = np.sqrt(np.sum(A_diffs**2, axis=1))
-    A_cumsum = np.cumsum(A_lengths)
-    A_cumsum = np.insert(A_cumsum, 0, 0)
-    
-    # Prevent division by zero
-    total_length = A_cumsum[-1]
-    if total_length < 1e-10:  # If total length is too small
-        print("Warning: Curve total length is close to zero")
-        total_length = 1e-10
-        
-    A_params = A_cumsum / total_length
+    curve_a = CurveData(A_points)
+    A_params = curve_a.compute_parameters()
     
     # Calculate offsets of curve B relative to curve A
     offsets = []
     for i in range(len(A_points)):
-        # Calculate tangent vector of curve A at this point
-        if i == len(A_points) - 1:
-            tangent = A_points[i] - A_points[i-1]
-        else:
-            tangent = A_points[i+1] - A_points[i]
-            
-        # Prevent zero vector
-        tangent_norm = np.linalg.norm(tangent)
-        if tangent_norm < 1e-10:
-            print(f"Warning: Tangent vector at point {i} is close to zero")
-            tangent = np.array([1e-10, 0])
-            tangent_norm = np.linalg.norm(tangent)
-            
-        tangent = tangent / tangent_norm
-        
-        # Calculate normal vector (perpendicular to tangent vector)
-        normal = np.array([-tangent[1], tangent[0]])
+        tangent, normal = curve_a.get_tangent_normal(i)
         
         # Calculate offset of point B relative to point A
         diff = B_points[i] - A_points[i]
@@ -182,22 +136,13 @@ def prepare_curve_data(A_points, B_points):
         offsets.append([tangential_offset, normal_offset])
     
     offsets = np.array(offsets)
-    return A_params.reshape(-1, 1), offsets
+    return A_params, offsets
 
 def predict_B_curve_tf(model, A_points, X_scaler, y_scaler):
     """Predict curve B from curve A using the trained model"""
-    # Prepare curve A parameters
-    A_diffs = np.diff(A_points, axis=0)
-    A_lengths = np.sqrt(np.sum(A_diffs**2, axis=1))
-    A_cumsum = np.cumsum(A_lengths)
-    A_cumsum = np.insert(A_cumsum, 0, 0)
-    
-    total_length = A_cumsum[-1]
-    if total_length < 1e-10:
-        print("Warning: Curve total length is close to zero during prediction")
-        total_length = 1e-10
-        
-    A_params = A_cumsum / total_length
+    # Create CurveData object and get parameters
+    curve_a = CurveData(A_points)
+    A_params = curve_a.compute_parameters()
     
     # Standardize input
     X_scaled = X_scaler.transform(A_params.reshape(-1, 1))
@@ -451,9 +396,9 @@ def validate_model(predictor: CurvePredictor,
 
 def process_curves(curve_A, curve_B):
     """Process curves for 3D visualization"""
-    # Arc length parameterization
-    s_A, _ = arc_length_parameterization(curve_A)
-    tangent_A, normal_A = compute_tangent_normal(curve_A)
+    # Create CurveData objects
+    curve_a_data = CurveData(curve_A)
+    s_values = curve_a_data.compute_parameters().flatten()
     
     # Create dense sampling of curve B
     num_samples = 1000
@@ -463,8 +408,9 @@ def process_curves(curve_A, curve_B):
         np.interp(t_dense, np.linspace(0, 1, len(curve_B)), curve_B[:,1])
     ])
     
-    # Arc length parameterization for dense B curve
-    s_B_dense, _ = arc_length_parameterization(B_dense)
+    # Create CurveData object for dense B curve
+    curve_b_dense = CurveData(B_dense)
+    s_B_dense = curve_b_dense.compute_parameters().flatten()
     
     # Sample points on curve A
     num_A_samples = 200
@@ -474,8 +420,8 @@ def process_curves(curve_A, curve_B):
         np.interp(s_values, np.linspace(0, 1, len(curve_A)), curve_A[:,1])
     ])
     
-    # Compute tangent and normal vectors for sampled points
-    tangent_sampled, normal_sampled = compute_tangent_normal(A_sampled)
+    # Create CurveData object for sampled points
+    curve_a_sampled = CurveData(A_sampled)
     
     # Calculate local coordinates
     local_coordinates = []
@@ -483,11 +429,13 @@ def process_curves(curve_A, curve_B):
         idx = np.argmin(np.abs(s_B_dense - s_values[i]))
         B_point = B_dense[idx]
         
+        tangent, normal = curve_a_sampled.get_tangent_normal(i)
+        
         local_coord = transform_to_local_coordinates(
             B_point,
             A_sampled[i],
-            tangent_sampled[i],
-            normal_sampled[i]
+            tangent,
+            normal
         )
         local_coordinates.append(local_coord)
         
@@ -521,45 +469,24 @@ def load_model(model_path: str, use_onnx: bool) -> CurvePredictor:
     predictor_class = ONNXPredictor if use_onnx else TFPredictor
     return predictor_class(model, x_scaler, y_scaler)
 
+# Example SVG data used for testing
+EXAMPLE_CURVE_A = "M14 57.0001C29.3464 35.0113 51.5 22 85 22C110 22 134 25 160.5 52.5"
+EXAMPLE_CURVE_B = "M0.5 65.5C28.9136 9.86327 64 -3.92666 102 1.99999C140 7.92664 170 29.5 181 40"
+
+def load_example_curves() -> Tuple[CurveData, CurveData]:
+    """Load example curves for testing"""
+    # Parse SVG paths and sample points
+    A_segments = parse_svg_path(EXAMPLE_CURVE_A)
+    B_segments = parse_svg_path(EXAMPLE_CURVE_B)
+    
+    # Create CurveData objects
+    curve_a = CurveData(bezier_sample(A_segments))
+    curve_b = CurveData(bezier_sample(B_segments))
+    
+    return curve_a, curve_b
+
 def main():
-    parser = argparse.ArgumentParser(description='Test curve prediction model')
-    parser.add_argument('--show', action='store_true', help='Show validation plots')
-    parser.add_argument('--validations', type=int, default=100, help='Number of validation iterations')
-    args = parser.parse_args()
-
-    # Use example SVG data from training
-    A_d = "M14 57.0001C29.3464 35.0113 51.5 22 85 22C110 22 134 25 160.5 52.5"
-    B_d = "M0.5 65.5C28.9136 9.86327 64 -3.92666 102 1.99999C140 7.92664 170 29.5 181 40"
-
-    # Get curve points
-    A_segments = parse_svg_path(A_d)
-    B_segments = parse_svg_path(B_d)
-
-    A_points = bezier_sample(A_segments)
-    B_points = bezier_sample(B_segments)
-
-    # Prepare training data for scaling
-    X, y = prepare_curve_data(A_points, B_points)
-    
-    # Create and fit scalers
-    X_scaler = StandardScaler()
-    y_scaler = StandardScaler()
-    
-    X_scaler.fit(X)
-    y_scaler.fit(y)
-
-    # Validate model
-    errors = validate_model_multiple_times(
-        'curve_model.keras',
-        A_points,
-        B_points,
-        X_scaler,
-        y_scaler,
-        n_validations=args.validations,
-        show_plots=args.show
-    )
-
-if __name__ == '__main__':
+    # Parse command line arguments
     parser = argparse.ArgumentParser(description='Test curve prediction model')
     parser.add_argument('--model_path', type=str, required=True, 
                         help='Path to the model file (TF or ONNX)')
@@ -572,16 +499,8 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    # Example SVG data
-    A_d = "M14 57.0001C29.3464 35.0113 51.5 22 85 22C110 22 134 25 160.5 52.5"
-    B_d = "M0.5 65.5C28.9136 9.86327 64 -3.92666 102 1.99999C140 7.92664 170 29.5 181 40"
-    
-    # Get curve points
-    A_segments = parse_svg_path(A_d)
-    B_segments = parse_svg_path(B_d)
-    
-    curve_a = CurveData(bezier_sample(A_segments))
-    curve_b = CurveData(bezier_sample(B_segments))
+    # Load example curves
+    curve_a, curve_b = load_example_curves()
     
     # Load model and create predictor
     predictor = load_model(args.model_path, args.use_onnx)
@@ -597,3 +516,6 @@ if __name__ == '__main__':
     
     print(f"\nValidation Results:")
     print(f"Mean Error: {mean_error:.4f} ± {std_error:.4f} pixels")
+
+if __name__ == '__main__':
+    main()
