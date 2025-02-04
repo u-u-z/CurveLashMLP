@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 from svg.path import parse_path, CubicBezier, Line
 
 def parse_svg_path(d):
@@ -50,3 +51,44 @@ def bezier_sample(segments, n_samples=50):
             y = np.linspace(seg['start'][1], seg['end'][1], n_samples)
             points.extend(list(zip(x, y)))
     return np.array(points)
+
+
+def load_data(data_dir):
+    """Load curve data from data directory
+    
+    Args:
+        data_dir (Path): Path to data directory
+        
+    Returns:
+        tuple: (A_points, B_points) arrays of curve points
+    """
+    data_dir = Path(data_dir)
+    
+    # Load curve A data
+    with open(data_dir / 'curve_A.txt', 'r') as f:
+        A_path = f.read().strip()
+    A_segments = parse_svg_path(A_path)
+    A_points = bezier_sample(A_segments)
+    
+    # Load curve B data
+    with open(data_dir / 'curve_B.txt', 'r') as f:
+        B_path = f.read().strip()
+    B_segments = parse_svg_path(B_path)
+    B_points = bezier_sample(B_segments)
+    
+    return A_points, B_points
+
+
+def preprocess_data(A_points, B_points):
+    """Preprocess curve data for model input/output
+    
+    Args:
+        A_points (np.array): Points from curve A
+        B_points (np.array): Points from curve B
+        
+    Returns:
+        tuple: (X, y) arrays for model training
+    """
+    X = A_points.reshape(1, -1, 2)
+    y = B_points.reshape(1, -1, 2)
+    return X, y
