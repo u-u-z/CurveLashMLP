@@ -18,7 +18,7 @@ class CurveData:
     params: Optional[np.ndarray] = None
     
     def compute_parameters(self) -> np.ndarray:
-        """Compute curve parameters using arc length parameterization"""
+        """Compute normalized arc length parameters"""
         diffs = np.diff(self.points, axis=0)
         lengths = np.sqrt(np.sum(diffs**2, axis=1))
         cumsum = np.cumsum(lengths)
@@ -26,28 +26,25 @@ class CurveData:
         
         total_length = cumsum[-1]
         if total_length < 1e-10:
-            print("Warning: Curve total length is close to zero")
             total_length = 1e-10
             
         self.params = cumsum / total_length
         return self.params.reshape(-1, 1)
     
     def get_tangent_normal(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Get tangent and normal vectors at given index"""
+        """Get tangent and normal vectors at the given index"""
         if index == len(self.points) - 1:
             tangent = self.points[index] - self.points[index-1]
         else:
             tangent = self.points[index+1] - self.points[index]
-            
+        
         tangent_norm = np.linalg.norm(tangent)
         if tangent_norm < 1e-10:
-            print(f"Warning: Tangent vector at point {index} is close to zero")
             tangent = np.array([1e-10, 0])
             tangent_norm = np.linalg.norm(tangent)
-            
+        
         tangent = tangent / tangent_norm
         normal = np.array([-tangent[1], tangent[0]])
-        
         return tangent, normal
 
 class CurvePredictor:
@@ -107,8 +104,6 @@ class ONNXPredictor(CurvePredictor):
         
         return b_points
 
-
-
 def transform_to_local_coordinates(point, origin, tangent, normal):
     """Transform point to local coordinate system"""
     translated = point - origin
@@ -138,89 +133,80 @@ def prepare_curve_data(A_points, B_points):
     offsets = np.array(offsets)
     return A_params, offsets
 
-def predict_B_curve_tf(model, A_points, X_scaler, y_scaler):
-    """Predict curve B from curve A using the trained model"""
-    # Create CurveData object and get parameters
-    curve_a = CurveData(A_points)
-    A_params = curve_a.compute_parameters()
+def process_curves(curve_A, curve_B):
+    """Process curves for 3D visualization"""
+    # Create CurveData objects
+    curve_a_data = CurveData(curve_A)
+    s_values = curve_a_data.compute_parameters().flatten()
     
-    # Standardize input
-    X_scaled = X_scaler.transform(A_params.reshape(-1, 1))
+    # Create dense sampling of curve B
+    num_samples = 1000
+    t_dense = np.linspace(0, 1, num_samples)
+    B_dense = np.column_stack([
+        np.interp(t_dense, np.linspace(0, 1, len(curve_B)), curve_B[:,0]),
+        np.interp(t_dense, np.linspace(0, 1, len(curve_B)), curve_B[:,1])
+    ])
     
-    # Predict offsets
-    offsets_scaled = model.predict(X_scaled)
-    offsets = y_scaler.inverse_transform(offsets_scaled)
+    # Create CurveData object for dense B curve
+    curve_b_dense = CurveData(B_dense)
+    s_B_dense = curve_b_dense.compute_parameters().flatten()
     
-    # Reconstruct curve B points
-    B_points = []
-    for i in range(len(A_points)):
-        if i == len(A_points) - 1:
-            tangent = A_points[i] - A_points[i-1]
-        else:
-            tangent = A_points[i+1] - A_points[i]
-            
-        tangent_norm = np.linalg.norm(tangent)
-        if tangent_norm < 1e-10:
-            print(f"Warning: Tangent vector at point {i} is close to zero")
-            tangent = np.array([1e-10, 0])
-            tangent_norm = np.linalg.norm(tangent)
-            
-        tangent = tangent / tangent_norm
-        normal = np.array([-tangent[1], tangent[0]])
+    # Sample points on curve A
+    num_A_samples = 200
+    s_values = np.linspace(0, 1, num_A_samples)
+    A_sampled = np.column_stack([
+        np.interp(s_values, np.linspace(0, 1, len(curve_A)), curve_A[:,0]),
+        np.interp(s_values, np.linspace(0, 1, len(curve_A)), curve_A[:,1])
+    ])
+    
+    # Create CurveData object for sampled points
+    curve_a_sampled = CurveData(A_sampled)
+    
+    # Calculate local coordinates
+    local_coordinates = []
+    for i in range(len(s_values)):
+        idx = np.argmin(np.abs(s_B_dense - s_values[i]))
+        B_point = B_dense[idx]
         
-        B_point = (A_points[i] + 
-                  offsets[i][0] * tangent + 
-                  offsets[i][1] * normal)
-        B_points.append(B_point)
-    
-    return np.array(B_points)
+        tangent, normal = curve_a_sampled.get_tangent_normal(i)
+        
+        local_coord = transform_to_local_coordinates(
+            B_point,
+            A_sampled[i],
+            tangent,
+            normal
+        )
+        local_coordinates.append(local_coord)
+        
+    return s_values, np.array(local_coordinates)
 
-def predict_B_curve_onnx(onnx_session, A_points, X_scaler, y_scaler):
-    """Predict curve B from curve A using the ONNX model"""
-    # Prepare curve A parameters
-    A_diffs = np.diff(A_points, axis=0)
-    A_lengths = np.sqrt(np.sum(A_diffs**2, axis=1))
-    A_cumsum = np.cumsum(A_lengths)
-    A_cumsum = np.insert(A_cumsum, 0, 0)
+def load_onnx_model(model_path):
+    """Load ONNX model and create inference session"""
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"ONNX model not found at {model_path}")
     
-    total_length = A_cumsum[-1]
-    if total_length < 1e-10:
-        print("Warning: Curve total length is close to zero during prediction")
-        total_length = 1e-10
-        
-    A_params = A_cumsum / total_length
+    # Create ONNX Runtime session
+    session = ort.InferenceSession(model_path)
+    return session
+
+def load_model(model_path: str, use_onnx: bool) -> CurvePredictor:
+    """Load model and create appropriate predictor"""
+    # Load model
+    if use_onnx:
+        print("Using ONNX model for inference")
+        model = ort.InferenceSession(model_path)
+    else:
+        print("Using TensorFlow model for inference")
+        model = keras.models.load_model(model_path)
     
-    # Standardize input
-    A_params_scaled = X_scaler.transform(A_params.reshape(-1, 1))
+    # Load scalers
+    scaler_dir = os.path.dirname(model_path)
+    x_scaler = joblib.load(os.path.join(scaler_dir, 'X_scaler.joblib'))
+    y_scaler = joblib.load(os.path.join(scaler_dir, 'y_scaler.joblib'))
     
-    # Run inference with ONNX model
-    input_name = onnx_session.get_inputs()[0].name
-    print(f"Using input name: {input_name}")
-    ort_inputs = {input_name: A_params_scaled.astype(np.float32)}
-    offsets_scaled = onnx_session.run(None, ort_inputs)[0]
-    
-    # Inverse transform the predictions
-    offsets = y_scaler.inverse_transform(offsets_scaled)
-    
-    # Calculate curve B points
-    B_points = np.zeros_like(A_points)
-    for i in range(len(A_points)):
-        if i == len(A_points) - 1:
-            tangent = A_points[i] - A_points[i-1]
-        else:
-            tangent = A_points[i+1] - A_points[i]
-            
-        tangent_norm = np.linalg.norm(tangent)
-        if tangent_norm < 1e-10:
-            tangent = np.array([1e-10, 0])
-            tangent_norm = np.linalg.norm(tangent)
-            
-        tangent = tangent / tangent_norm
-        normal = np.array([-tangent[1], tangent[0]])
-        
-        B_points[i] = A_points[i] + offsets[i][0] * tangent + offsets[i][1] * normal
-    
-    return B_points
+    # Create predictor
+    predictor_class = ONNXPredictor if use_onnx else TFPredictor
+    return predictor_class(model, x_scaler, y_scaler)
 
 class ValidationVisualizer:
     """Class for visualizing validation results"""
@@ -364,81 +350,6 @@ def validate_model(predictor: CurvePredictor,
         )
     
     return mean_error, std_error
-
-def process_curves(curve_A, curve_B):
-    """Process curves for 3D visualization"""
-    # Create CurveData objects
-    curve_a_data = CurveData(curve_A)
-    s_values = curve_a_data.compute_parameters().flatten()
-    
-    # Create dense sampling of curve B
-    num_samples = 1000
-    t_dense = np.linspace(0, 1, num_samples)
-    B_dense = np.column_stack([
-        np.interp(t_dense, np.linspace(0, 1, len(curve_B)), curve_B[:,0]),
-        np.interp(t_dense, np.linspace(0, 1, len(curve_B)), curve_B[:,1])
-    ])
-    
-    # Create CurveData object for dense B curve
-    curve_b_dense = CurveData(B_dense)
-    s_B_dense = curve_b_dense.compute_parameters().flatten()
-    
-    # Sample points on curve A
-    num_A_samples = 200
-    s_values = np.linspace(0, 1, num_A_samples)
-    A_sampled = np.column_stack([
-        np.interp(s_values, np.linspace(0, 1, len(curve_A)), curve_A[:,0]),
-        np.interp(s_values, np.linspace(0, 1, len(curve_A)), curve_A[:,1])
-    ])
-    
-    # Create CurveData object for sampled points
-    curve_a_sampled = CurveData(A_sampled)
-    
-    # Calculate local coordinates
-    local_coordinates = []
-    for i in range(len(s_values)):
-        idx = np.argmin(np.abs(s_B_dense - s_values[i]))
-        B_point = B_dense[idx]
-        
-        tangent, normal = curve_a_sampled.get_tangent_normal(i)
-        
-        local_coord = transform_to_local_coordinates(
-            B_point,
-            A_sampled[i],
-            tangent,
-            normal
-        )
-        local_coordinates.append(local_coord)
-        
-    return s_values, np.array(local_coordinates)
-
-def load_onnx_model(model_path):
-    """Load ONNX model and create inference session"""
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"ONNX model not found at {model_path}")
-    
-    # Create ONNX Runtime session
-    session = ort.InferenceSession(model_path)
-    return session
-
-def load_model(model_path: str, use_onnx: bool) -> CurvePredictor:
-    """Load model and create appropriate predictor"""
-    # Load model
-    if use_onnx:
-        print("Using ONNX model for inference")
-        model = ort.InferenceSession(model_path)
-    else:
-        print("Using TensorFlow model for inference")
-        model = keras.models.load_model(model_path)
-    
-    # Load scalers
-    scaler_dir = os.path.dirname(model_path)
-    x_scaler = joblib.load(os.path.join(scaler_dir, 'X_scaler.joblib'))
-    y_scaler = joblib.load(os.path.join(scaler_dir, 'y_scaler.joblib'))
-    
-    # Create predictor
-    predictor_class = ONNXPredictor if use_onnx else TFPredictor
-    return predictor_class(model, x_scaler, y_scaler)
 
 # Example SVG data used for testing
 EXAMPLE_CURVE_A = "M14 57.0001C29.3464 35.0113 51.5 22 85 22C110 22 134 25 160.5 52.5"
