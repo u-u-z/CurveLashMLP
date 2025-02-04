@@ -97,7 +97,57 @@ Min Error: 1.8515 pixels
 Max Error: 11.9900 pixels
 ```
 
-### 3.3 Training Process Analysis
+### 3.3 Usage Guide
+
+#### Installation
+
+Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+#### Training
+
+Train the model using the following command:
+
+```bash
+python train_task.py [options]
+
+Options:
+  --show            Show and save training plots (default: False)
+```
+
+The training script will:
+1. Generate curve variations for training data
+2. Train the neural network model
+3. Save the trained model in both Keras (.keras) and ONNX (.onnx) formats
+4. Save the data scalers for later use
+
+#### Testing
+
+Test the model using the following command:
+
+```bash
+python test_task.py [options]
+
+Options:
+  --model_path      Path to the model file (TF or ONNX)
+  --use_onnx        Use ONNX model instead of TensorFlow (default: False)
+  --show_plots      Show validation plots (default: False)
+  --n_validations   Number of validation runs (default: 100)
+```
+
+Example usage:
+```bash
+# Test with TensorFlow model
+python test_task.py --model_path curve_model.keras --show_plots
+
+# Test with ONNX model
+python test_task.py --model_path curve_model.onnx --use_onnx --show_plots
+```
+
+### 3.4 Training Process Analysis
 
 Loss function and MAE convergence process:
 

@@ -145,11 +145,44 @@ def train_curve_model(A_curves, B_curves, epochs=100, batch_size=32):
         verbose=1
     )
     
-    # Save model
+    # Save model and scalers
     print("Model input shape:", model.input_shape)
     model.save('curve_model.keras')
     
+    # Save scalers
+    import joblib
+    joblib.dump(X_scaler, 'X_scaler.joblib')
+    joblib.dump(y_scaler, 'y_scaler.joblib')
+    
+    # Convert to ONNX
+    convert_to_onnx(model, 'curve_model.onnx')
+    
     return model, history, X_scaler, y_scaler
+
+def convert_to_onnx(model, output_path):
+    """Convert Keras model to ONNX format"""
+    import tf2onnx
+    import onnx
+    
+    # Create a new model with named input
+    inputs = tf.keras.Input(shape=(1,), name='model_input')
+    x = model.layers[0](inputs)
+    for layer in model.layers[1:-1]:
+        x = layer(x)
+    outputs = model.layers[-1](x)
+    
+    named_model = tf.keras.Model(inputs=inputs, outputs=outputs, name='curve_model')
+    
+    # Convert the model
+    spec = (tf.TensorSpec((None, 1), tf.float32, name="model_input"),)
+    model_proto, _ = tf2onnx.convert.from_keras(
+        named_model,
+        input_signature=spec,
+        opset=13,
+        output_path=output_path
+    )
+    
+    print(f"Model converted and saved to {output_path}")
 
 def predict_B_curve(model, A_points, X_scaler, y_scaler):
     """

@@ -54,4 +54,5 @@ output/
 *.keras
 *.onnx
 web/*.onnx
-plots
+plots/
+*.joblib
