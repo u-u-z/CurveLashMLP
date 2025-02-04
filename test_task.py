@@ -228,6 +228,10 @@ class ValidationVisualizer:
         self.original_a = original_a
         self.original_b = original_b
         
+    def _plot_curve(self, points: np.ndarray, style: str, label: str = '', alpha: float = 1.0):
+        """Helper method to plot a curve"""
+        plt.plot(points[:, 0], -points[:, 1], style, label=label, alpha=alpha)
+
     def plot_validation_results(self, 
                                transformed_as: List[np.ndarray],
                                transformed_bs: List[np.ndarray],
@@ -240,17 +244,11 @@ class ValidationVisualizer:
         for i in range(min(n_samples, len(transformed_as))):
             ax = plt.subplot(2, 5, i + 1)
             
-            plt.plot(self.original_a.points[:, 0], -self.original_a.points[:, 1], 
-                     'b-', alpha=0.3, label='Original A')
-            plt.plot(self.original_b.points[:, 0], -self.original_b.points[:, 1], 
-                     'r-', alpha=0.3, label='Original B')
-            
-            plt.plot(transformed_as[i][:, 0], -transformed_as[i][:, 1], 'b--', 
-                     label=f'A {i+1}')
-            plt.plot(transformed_bs[i][:, 0], -transformed_bs[i][:, 1], 'r--', 
-                     label=f'B {i+1}')
-            plt.plot(predicted_bs[i][:, 0], -predicted_bs[i][:, 1], 'g--', 
-                     label=f'Pred B\n(err:{errors[i]:.2f})')
+            self._plot_curve(self.original_a.points, 'b-', 'Original A', 0.3)
+            self._plot_curve(self.original_b.points, 'r-', 'Original B', 0.3)
+            self._plot_curve(transformed_as[i], 'b--', f'A {i+1}')
+            self._plot_curve(transformed_bs[i], 'r--', f'B {i+1}')
+            self._plot_curve(predicted_bs[i], 'g--', f'Pred B\n(err:{errors[i]:.2f})')
             
             plt.title(f'Test {i+1}')
             plt.grid(True)
@@ -261,39 +259,12 @@ class ValidationVisualizer:
         plt.tight_layout()
         plt.show()
         
-        # Overlap plot
-        self._plot_overlap(transformed_as, transformed_bs, predicted_bs)
-        
         # 3D visualization
-        self._plot_3d_visualization(transformed_as, predicted_bs)
-    
-    def _plot_overlap(self, transformed_as, transformed_bs, predicted_bs):
-        plt.figure(figsize=(12, 8))
-        plt.plot(self.original_a.points[:, 0], -self.original_a.points[:, 1], 
-                 'b-', linewidth=2, label='Original A', alpha=0.8)
-        plt.plot(self.original_b.points[:, 0], -self.original_b.points[:, 1], 
-                 'r-', linewidth=2, label='Original B', alpha=0.8)
-        
-        for i in range(len(transformed_as)):
-            plt.plot(transformed_as[i][:, 0], -transformed_as[i][:, 1], 'b-', alpha=0.1)
-            plt.plot(transformed_bs[i][:, 0], -transformed_bs[i][:, 1], 'r-', alpha=0.1)
-            plt.plot(predicted_bs[i][:, 0], -predicted_bs[i][:, 1], 'g-', alpha=0.1)
-        
-        plt.title('Overlap of All Validation Results')
-        plt.grid(True)
-        plt.legend(['Original A', 'Original B', 'Transformed A', 'Transformed B', 'Predicted B'])
-        ax = plt.gca()
-        ax.set_aspect('equal', adjustable='box')
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.show()
-    
-    def _plot_3d_visualization(self, transformed_as, predicted_bs):
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
         
-        for i in range(len(transformed_as)):
-            s_values, local_coords = process_curves(transformed_as[i], predicted_bs[i])
+        for i, (ta, pb) in enumerate(zip(transformed_as, predicted_bs)):
+            s_values, local_coords = process_curves(ta, pb)
             ax.plot(s_values, local_coords[:,0], local_coords[:,1],
                     alpha=0.5, linewidth=1,
                     color=plt.cm.viridis(i/len(transformed_as)))
