@@ -145,6 +145,10 @@ def train_curve_model(A_curves, B_curves, epochs=100, batch_size=32):
         verbose=1
     )
     
+    # Save model
+    print("Model input shape:", model.input_shape)
+    model.save('curve_model.keras')
+    
     return model, history, X_scaler, y_scaler
 
 def predict_B_curve(model, A_points, X_scaler, y_scaler):
