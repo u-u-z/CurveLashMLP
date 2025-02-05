@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Curve Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #drawingCanvas {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            background-color: white;
+            border-radius: 4px;
+        }
+        .svg-container {
+            position: relative;
+            border: 1px solid #ddd;
+            background-color: white;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .button-container {
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            background-color: #ff4444;
+            color: white;
+            margin-right: 10px;
+        }
+        .legend {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .legend span {
+            margin-right: 20px;
+        }
+        .blue-dot {
+            color: blue;
+        }
+        .red-dot {
+            color: red;
+        }
+        .control-point {
+            fill: #4CAF50;
+            stroke: white;
+            stroke-width: 2;
+            cursor: move;
+        }
+        .handle-point {
+            fill: #666;
+            stroke: white;
+            stroke-width: 2;
+            cursor: move;
+        }
+        .handle-line {
+            stroke: #999;
+            stroke-width: 1;
+            stroke-dasharray: 3,3;
+            pointer-events: none;
+        }
+        .section-title {
+            margin-top: 30px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Curve Predictor</h1>
+        <h2 class="section-title">Free Drawing Mode</h2>
+        <div class="button-container">
+            <button id="clearButton">Clear Canvas</button>
+        </div>
+        <canvas id="drawingCanvas" width="600" height="400"></canvas>
+        <div class="legend">
+            <span><span class="blue-dot">●</span> Curve A (Input)</span>
+            <span><span class="red-dot">●</span> Curve B (Predicted)</span>
+        </div>
+        <p>Instructions: Draw curve A by clicking and dragging on the canvas. The prediction will appear automatically when you release the mouse.</p>
+    </div>
+
+    <div class="container">
+        <h2 class="section-title">Control Points Mode</h2>
+        <div class="button-container">
+            <button id="addPointButton">Add Point</button>
+            <button id="clearPointsButton">Clear Points</button>
+        </div>
+        <div class="svg-container">
+            <svg width="600" height="400" id="svgCanvas">
+                <path id="curvePath" fill="none" stroke="blue" stroke-width="2"/>
+                <path id="predictedPath" fill="none" stroke="red" stroke-width="2"/>
+            </svg>
+        </div>
+        <div class="legend">
+            <span><span class="blue-dot">●</span> Curve A (Input)</span>
+            <span><span class="red-dot">●</span> Curve B (Predicted)</span>
+            <span style="color: #4CAF50">●</span> Control Points</span>
+        </div>
+        <p>Instructions: Add control points and drag them to adjust the curve. The prediction will update automatically.</p>
+    </div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html> 
